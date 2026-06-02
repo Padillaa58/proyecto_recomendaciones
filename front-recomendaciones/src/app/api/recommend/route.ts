@@ -1,3 +1,4 @@
+// Este archivo define las rutas API para obtener tipos de comida y generar recomendaciones
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
