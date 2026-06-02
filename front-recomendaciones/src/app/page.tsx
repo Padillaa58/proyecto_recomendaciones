@@ -27,6 +27,7 @@ export default function Home() {
     "Ubicacion no capturada",
   );
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -48,7 +49,9 @@ export default function Home() {
   }, []);
 
   const canSubmit = useMemo(() => {
-    return latUsuario.trim() !== "" && lonUsuario.trim() !== "";
+    const lat = Number(latUsuario);
+    const lon = Number(lonUsuario);
+    return Number.isFinite(lat) && Number.isFinite(lon);
   }, [latUsuario, lonUsuario]);
 
   const toggleTipo = (tipo: string) => {
@@ -82,14 +85,19 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setHasSearched(true);
 
     if (!canSubmit) {
-      setError("Primero necesitas capturar tu ubicacion");
+      setError("Primero necesitas capturar una ubicacion valida");
       return;
     }
 
+    setRestaurants([]);
     setLoading(true);
     try {
+      const lat = Number(latUsuario);
+      const lon = Number(lonUsuario);
+
       const res = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,8 +105,8 @@ export default function Home() {
           tipos: selectedTipos,
           minRating,
           maxPrecio,
-          latUsuario: Number(latUsuario),
-          lonUsuario: Number(lonUsuario),
+          latUsuario: lat,
+          lonUsuario: lon,
           topN,
         }),
       });
@@ -315,6 +323,14 @@ export default function Home() {
             );
           })}
         </section>
+
+        {hasSearched && !loading && !error && restaurants.length === 0 && (
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600 shadow">
+            No se encontraron recomendaciones con los filtros seleccionados.
+            Prueba bajando el rating minimo, subiendo el precio maximo o
+            seleccionando mas tipos de restaurante.
+          </section>
+        )}
       </main>
     </div>
   );
