@@ -30,17 +30,53 @@ export default function Home() {
   const [hasSearched, setHasSearched] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [showNotification, setShowNotification] = useState<boolean>(false);
+
+  const shortenCategoryName = (name: string): string => {
+    console.log("Nombre original:", name);
+    const replacements: { [key: string]: string } = {
+      "Bares, cantinas y similares": "Bares y similares",
+      "Cafeterías, fuentes de sodas, neverías, refresquerías y similares": "Fuentes de soda y neverias",
+      "Departamentos y casas amueblados con servicios de hotelería": "Alojamientos amueblados con servicio de hotel y cocina",
+      "Restaurantes con servicio de preparación de alimentos a la carta o de comida corrida": "Restaurantes de servicio a la mesa",
+      "Restaurantes con servicio de preparación de antojitos": "Restaurante de antojitos",
+      "Restaurantes con servicio de preparación de pescados y mariscos": "Restaurantes de mariscos",
+      "Restaurantes con servicio de preparación de pizzas, hamburguesas, hot dogs y pollos rostizados para llevar": "Restaurantes de comida rápida para llevar",
+      "Restaurantes con servicio de preparación de tacos y tortas": "Restaurantes de tacos y tortas",
+      "Restaurantes que preparan otro tipo de alimentos para llevar": "Restaurantes de comida para llevar",
+      "Servicios de preparación de alimentos en unidades móviles": "Servicios de alimentos en unidades moviles",
+      "Servicios de preparación de alimentos para ocasiones especiales": "Servicios de alimentos para ocasiones especiales",
+      "Servicios de preparación de otros alimentos para consumo inmediato": "Servicios de otros alimentos para consumo inmediato",
+    };
+
+    for (const [original, short] of Object.entries(replacements)) {
+      if (name.toLowerCase().trim() === original.toLowerCase().trim()) {
+        console.log("Match encontrado:", original, "->", short);
+        return short;
+      }
+    }
+    console.log("No encontrado, devolviendo:", name);
+    return name;
+  };
 
   useEffect(() => {
     const loadTipos = async () => {
       try {
+        console.log("Iniciando carga de tipos...");
         const res = await fetch("/api/recommend");
+        console.log("Respuesta status:", res.status);
         const data = await res.json();
+        console.log("Data recibida:", data);
         if (!res.ok) {
           throw new Error(data.error || "No se pudieron cargar los tipos");
         }
-        setTipos(data.tipos || []);
+        const tiposOriginales = data.tipos || [];
+        console.log("Tipos originales:", tiposOriginales);
+        const tiposAcortados = tiposOriginales.map((tipo: string) => shortenCategoryName(tipo));
+        console.log("Tipos acortados:", tiposAcortados);
+        setTipos(tiposAcortados);
       } catch (err) {
+        console.error("Error cargando tipos:", err);
         setError(err instanceof Error ? err.message : "Error inesperado");
       }
     };
@@ -49,6 +85,7 @@ export default function Home() {
   }, []);
 
   const canSubmit = useMemo(() => {
+    if (!latUsuario || !lonUsuario) return false;
     const lat = Number(latUsuario);
     const lon = Number(lonUsuario);
     return Number.isFinite(lat) && Number.isFinite(lon);
@@ -84,14 +121,15 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setHasSearched(true);
 
     if (!canSubmit) {
-      setError("Primero necesitas capturar una ubicacion valida");
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
       return;
     }
 
+    setError("");
+    setHasSearched(true);
     setRestaurants([]);
     setLoading(true);
     try {
@@ -127,6 +165,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_0%_0%,#ffe0b2_0%,#f8fafc_45%,#e2e8f0_100%)] px-4 py-10 text-zinc-900">
+      {showNotification && (
+        <div className="fixed top-4 right-4 z-40 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">
+            Se necesita la ubicación
+          </div>
+        </div>
+      )}
+
       {showLocationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/65 px-4">
           <div
@@ -151,16 +197,6 @@ export default function Home() {
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  handleLocate();
-                  setShowLocationModal(false);
-                }}
-                className="rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-800"
-              >
-                Activar ubicacion
-              </button>
               <button
                 type="button"
                 onClick={() => setShowLocationModal(false)}
@@ -189,25 +225,29 @@ export default function Home() {
                   Tipo de restaurante
                 </label>
                 <div className="mt-2 max-h-56 overflow-auto rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="flex flex-wrap gap-2">
-                    {tipos.map((tipo) => {
-                      const active = selectedTipos.includes(tipo);
-                      return (
-                        <button
-                          key={tipo}
-                          type="button"
-                          onClick={() => toggleTipo(tipo)}
-                          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                            active
-                              ? "border-amber-700 bg-amber-700 text-white"
-                              : "border-zinc-300 bg-white text-zinc-700 hover:border-amber-500"
-                          }`}
-                        >
-                          {tipo}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {tipos.length === 0 ? (
+                    <p className="text-xs text-zinc-500">Cargando tipos...</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {tipos.map((tipo) => {
+                        const active = selectedTipos.includes(tipo);
+                        return (
+                          <button
+                            key={tipo}
+                            type="button"
+                            onClick={() => toggleTipo(tipo)}
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                              active
+                                ? "border-amber-700 bg-amber-700 text-white"
+                                : "border-zinc-300 bg-white text-zinc-700 hover:border-amber-500"
+                            }`}
+                          >
+                            {tipo}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -263,7 +303,13 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-xl bg-zinc-900 px-5 py-2 text-sm font-bold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-500"
+                className={`rounded-xl px-5 py-2 text-sm font-bold text-white transition ${
+                  loading
+                    ? "cursor-not-allowed bg-zinc-500"
+                    : !canSubmit
+                      ? "cursor-pointer bg-zinc-500"
+                      : "bg-zinc-900 hover:bg-zinc-700"
+                }`}
               >
                 {loading ? "Calculando..." : "Buscar recomendaciones"}
               </button>
