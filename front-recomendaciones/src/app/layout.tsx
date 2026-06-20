@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Recomendaciones",
-  description: "Sistema de recomendaciones de restaurantes",
+  description: "Sistema de recomendaciones de restaurantes ",
   icons: {
     icon: "/icon.png",
   },
