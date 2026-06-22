@@ -32,48 +32,45 @@ export default function Home() {
   const [error, setError] = useState<string>("");
   const [showNotification, setShowNotification] = useState<boolean>(false);
 
-  const shortenCategoryName = (name: string): string => {
-    console.log("Nombre original:", name);
-    const replacements: { [key: string]: string } = {
-      "Bares, cantinas y similares": "Bares y similares",
-      "Cafeterías, fuentes de sodas, neverías, refresquerías y similares": "Fuentes de soda y neverias",
-      "Departamentos y casas amueblados con servicios de hotelería": "Alojamientos amueblados con servicio de hotel y cocina",
-      "Restaurantes con servicio de preparación de alimentos a la carta o de comida corrida": "Restaurantes de servicio a la mesa",
-      "Restaurantes con servicio de preparación de antojitos": "Restaurante de antojitos",
-      "Restaurantes con servicio de preparación de pescados y mariscos": "Restaurantes de mariscos",
-      "Restaurantes con servicio de preparación de pizzas, hamburguesas, hot dogs y pollos rostizados para llevar": "Restaurantes de comida rápida para llevar",
-      "Restaurantes con servicio de preparación de tacos y tortas": "Restaurantes de tacos y tortas",
-      "Restaurantes que preparan otro tipo de alimentos para llevar": "Restaurantes de comida para llevar",
-      "Servicios de preparación de alimentos en unidades móviles": "Servicios de alimentos en unidades moviles",
-      "Servicios de preparación de alimentos para ocasiones especiales": "Servicios de alimentos para ocasiones especiales",
-      "Servicios de preparación de otros alimentos para consumo inmediato": "Servicios de otros alimentos para consumo inmediato",
-    };
+  const categoryNameMap: { [key: string]: string } = {
+    "Bares, cantinas y similares": "Bares y similares",
+    "Cafeterías, fuentes de sodas, neverías, refresquerías y similares": "Fuentes de soda y neverias",
+    "Departamentos y casas amueblados con servicios de hotelería": "Alojamientos amueblados con servicio de hotel y cocina",
+    "Restaurantes con servicio de preparación de alimentos a la carta o de comida corrida": "Restaurantes de servicio a la mesa",
+    "Restaurantes con servicio de preparación de antojitos": "Restaurante de antojitos",
+    "Restaurantes con servicio de preparación de pescados y mariscos": "Restaurantes de mariscos",
+    "Restaurantes con servicio de preparación de pizzas, hamburguesas, hot dogs y pollos rostizados para llevar": "Restaurantes de comida rápida para llevar",
+    "Restaurantes con servicio de preparación de tacos y tortas": "Restaurantes de tacos y tortas",
+    "Restaurantes que preparan otro tipo de alimentos para llevar": "Restaurantes de comida para llevar",
+    "Servicios de preparación de alimentos en unidades móviles": "Servicios de alimentos en unidades moviles",
+    "Servicios de preparación de alimentos para ocasiones especiales": "Servicios de alimentos para ocasiones especiales",
+    "Servicios de preparación de otros alimentos para consumo inmediato": "Servicios de otros alimentos para consumo inmediato",
+  };
 
-    for (const [original, short] of Object.entries(replacements)) {
+  // Mapa inverso: nombre corto → nombre original del CSV
+  const reverseCategoryMap: { [key: string]: string } = Object.fromEntries(
+    Object.entries(categoryNameMap).map(([original, short]) => [short, original])
+  );
+
+  const shortenCategoryName = (name: string): string => {
+    for (const [original, short] of Object.entries(categoryNameMap)) {
       if (name.toLowerCase().trim() === original.toLowerCase().trim()) {
-        console.log("Match encontrado:", original, "->", short);
         return short;
       }
     }
-    console.log("No encontrado, devolviendo:", name);
     return name;
   };
 
   useEffect(() => {
     const loadTipos = async () => {
       try {
-        console.log("Iniciando carga de tipos...");
         const res = await fetch("/api/recommend");
-        console.log("Respuesta status:", res.status);
         const data = await res.json();
-        console.log("Data recibida:", data);
         if (!res.ok) {
           throw new Error(data.error || "No se pudieron cargar los tipos");
         }
         const tiposOriginales = data.tipos || [];
-        console.log("Tipos originales:", tiposOriginales);
         const tiposAcortados = tiposOriginales.map((tipo: string) => shortenCategoryName(tipo));
-        console.log("Tipos acortados:", tiposAcortados);
         setTipos(tiposAcortados);
       } catch (err) {
         console.error("Error cargando tipos:", err);
@@ -136,11 +133,16 @@ export default function Home() {
       const lat = Number(latUsuario);
       const lon = Number(lonUsuario);
 
+      // Convertir los nombres cortos de vuelta a los nombres originales del CSV
+      const tiposOriginales = selectedTipos.map(
+        (t) => reverseCategoryMap[t] ?? t
+      );
+
       const res = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tipos: selectedTipos,
+          tipos: tiposOriginales,
           minRating,
           maxPrecio,
           latUsuario: lat,

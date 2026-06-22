@@ -5,9 +5,9 @@ export const runtime = "nodejs";
 
 const BACKEND_BASE_URL =
   process.env.RAILWAY_BACKEND_URL ||
-  process.env.NODE_ENV === "development"
+  (process.env.NODE_ENV === "development"
     ? "http://localhost:8000"
-    : "https://web-production-80eeb.up.railway.app";
+    : "https://web-production-80eeb.up.railway.app");
 
 type RecommendPayload = {
   tipos?: string[];
